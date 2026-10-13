@@ -13,6 +13,8 @@ export default function App() {
   const [escapedCount, setEscapedCount] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
   const [agents, setAgents] = useState<AgentData[]>([])
+  
+  const allAgentsRef = useRef<AgentData[]>([])
 
   const initAgents = () => {
     const newAgents: AgentData[] = []
@@ -26,7 +28,7 @@ export default function App() {
           id: c * perClass + i,
           height: params.avgHeight + (Math.random() - 0.5) * 0.1,
           shoulderWidth: params.avgShoulderWidth + (Math.random() - 0.5) * 0.05,
-          baseSpeed: params.avgSpeed * randSpeedFactor,
+          baseSpeed: Math.max(0.2, params.avgSpeed * randSpeedFactor),
           currentPos: new THREE.Vector3(
             classroomPos.x + (Math.random() - 0.5) * 6,
             0,
@@ -41,6 +43,7 @@ export default function App() {
         })
       }
     }
+    allAgentsRef.current = newAgents
     setAgents(newAgents)
     setEscapedCount(0)
     setTime(0)
@@ -48,7 +51,7 @@ export default function App() {
 
   useEffect(() => {
     initAgents()
-  }, [params.agentCount, params.avgHeight, params.avgShoulderWidth, params.avgSpeed, params.speedRandomness])
+  }, [params.agentCount])
 
   useEffect(() => {
     if (isPaused) return
@@ -63,7 +66,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#090a0f' }}>
+    <div style={{ width: '100vw', height: '100vh', background: '#090a0f', position: 'relative' }}>
       <ControlPanel
         params={params}
         setParams={setParams}
@@ -75,10 +78,10 @@ export default function App() {
         onReset={initAgents}
       />
 
-      <Canvas camera={{ position: [0, 25, 35], fov: 50 }}>
+      <Canvas camera={{ position: [0, 30, 40], fov: 45 }}>
         <color attach="background" args={['#090a0f']} />
-        <ambientLight intensity={0.8} />
-        <directionalLight position={[20, 40, 20]} intensity={1.2} />
+        <ambientLight intensity={1.2} />
+        <directionalLight position={[10, 40, 20]} intensity={1.5} />
 
         <Map />
 
@@ -86,7 +89,7 @@ export default function App() {
           <Agent
             key={agent.id}
             agent={agent}
-            allAgents={agents}
+            allAgentsRef={allAgentsRef}
             params={params}
             onEscape={handleEscape}
           />
