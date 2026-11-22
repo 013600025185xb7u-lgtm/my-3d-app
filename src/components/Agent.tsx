@@ -1,100 +1,119 @@
-import React, { useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
-import * as THREE from 'three'
-import { AgentData, SimParams, MAP_CONFIG } from '../types'
+import { useState, useEffect, type CSSProperties } from 'react';
 
-type Props = {
-  agent: AgentData
-  allAgentsRef: React.MutableRefObject<AgentData[]>
-  params: SimParams
-  onEscape: (id: number) => void
+interface Position {
+  x: number;
+  y: number;
 }
 
-export function Agent({ agent, allAgentsRef, params, onEscape }: Props) {
-  const meshRef = useRef<THREE.Group>(null!)
-  const colorRef = useRef<string>('#00f3ff')
+export const Agent = () => {
+  // キャラクターの位置 (ピクセル単位)
+  const [position, setPosition] = useState<Position>({ x: 100, y: 100 });
 
-  useFrame((_, delta) => {
-    if (!meshRef.current || agent.escaped) return
+  // 移動速度 (1回のキー入力で動くピクセル数)
+  const STEP = 20;
 
-    const dt = Math.min(delta, 0.1) * params.simSpeed
-    const pos = agent.currentPos
+  // フィールドのサイズ定義
+  const FIELD_WIDTH = 400;
+  const FIELD_HEIGHT = 400;
+  const AGENT_SIZE = 40;
 
-    const waypoints = [
-      new THREE.Vector3(26, 0, 0),
-      new THREE.Vector3(30, -1.75, -1.5),
-      new THREE.Vector3(26, -3.5, -4.5),
-      MAP_CONFIG.exitPos
-    ]
-
-    if (!agent.isReverse && Math.random() < (params.reverseRate / 10000)) {
-      agent.isReverse = true
-    }
-
-    const target = agent.isReverse ? agent.originClassroom : waypoints[agent.targetIndex]
-
-    if (!agent.isReverse && pos.distanceTo(target) < 1.2) {
-      if (agent.targetIndex < waypoints.length - 1) {
-        agent.targetIndex++
-      } else {
-        agent.escaped = true
-        onEscape(agent.id)
-        return
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 矢印キーが押された時の画面スクロールを防ぐ
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
       }
-    }
 
-    const desiredDir = new THREE.Vector3().subVectors(target, pos).normalize()
-    const desiredVel = desiredDir.clone().multiplyScalar(agent.baseSpeed)
+      setPosition((prev) => {
+        let { x, y } = prev;
 
-    const force = new THREE.Vector3()
-    let nearbyCount = 0
-
-    const agents = allAgentsRef.current
-    for (let i = 0; i < agents.length; i++) {
-      const other = agents[i]
-      if (other.id === agent.id || other.escaped) continue
-
-      const dist = pos.distanceTo(other.currentPos)
-      const minDist = (agent.shoulderWidth + other.shoulderWidth) / 2 + params.minPersonalDist
-
-      if (dist < minDist * 2.5) {
-        nearbyCount++
-        const pushDir = new THREE.Vector3().subVectors(pos, other.currentPos).normalize()
-        if (dist < minDist) {
-          force.addScaledVector(pushDir, (minDist - dist) * 12.0)
-        } else {
-          const sideDir = new THREE.Vector3(-pushDir.z, 0, pushDir.x)
-          force.addScaledVector(sideDir, 2.0)
+        switch (e.key) {
+          case 'ArrowUp':
+            y = Math.max(0, y - STEP);
+            break;
+          case 'ArrowDown':
+            y = Math.min(FIELD_HEIGHT - AGENT_SIZE, y + STEP);
+            break;
+          case 'ArrowLeft':
+            x = Math.max(0, x - STEP);
+            break;
+          case 'ArrowRight':
+            x = Math.min(FIELD_WIDTH - AGENT_SIZE, x + STEP);
+            break;
+          default:
+            return prev;
         }
-      }
-    }
 
-    let speedFactor = 1.0
-    if (nearbyCount >= 5) {
-      speedFactor = 0.3
-      colorRef.current = '#ff2a6d'
-    } else if (nearbyCount >= 2) {
-      speedFactor = 0.7
-      colorRef.current = '#ffb703'
-    } else {
-      colorRef.current = agent.isReverse ? '#7000ff' : '#00f3ff'
-    }
+        return { x, y };
+      });
+    };
 
-    desiredVel.multiplyScalar(speedFactor)
-    agent.velocity.lerp(desiredVel.add(force), 0.1)
-    pos.addScaledVector(agent.velocity, dt)
+    window.addEventListener('keydown', handleKeyDown);
 
-    meshRef.current.position.copy(pos)
-  })
-
-  if (agent.escaped) return null
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   return (
-    <group ref={meshRef} position={agent.currentPos.toArray()}>
-      <mesh position={[0, agent.height / 2, 0]}>
-        <cylinderGeometry args={[agent.shoulderWidth / 2, agent.shoulderWidth / 2, agent.height, 16]} />
-        <meshStandardMaterial color={colorRef.current} emissive={colorRef.current} emissiveIntensity={0.5} />
-      </mesh>
-    </group>
-  )
-}
+    <div style={containerStyle}>
+      <h2 style={{ color: '#fff', marginBottom: '10px' }}>Agent Controller</h2>
+      <p style={{ color: '#ccc', marginBottom: '20px' }}>
+        キーボードの <strong>矢印キー（↑ ↓ ← →）</strong> で移動します
+      </p>
+
+      {/* フィールド */}
+      <div style={{ ...fieldStyle, width: FIELD_WIDTH, height: FIELD_HEIGHT }}>
+        {/* キャラクター */}
+        <div
+          style={{
+            ...agentStyle,
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            width: AGENT_SIZE,
+            height: AGENT_SIZE,
+          }}
+        >
+          🚶
+        </div>
+      </div>
+
+      <div style={{ marginTop: '15px', color: '#aaa', fontSize: '14px' }}>
+        現在位置: X: {position.x}px, Y: {position.y}px
+      </div>
+    </div>
+  );
+};
+
+// スタイル定義
+const containerStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '100vh',
+  backgroundColor: '#1a1a1a',
+  fontFamily: 'sans-serif',
+};
+
+const fieldStyle: CSSProperties = {
+  position: 'relative',
+  backgroundColor: '#2a2a2a',
+  border: '2px solid #444',
+  borderRadius: '8px',
+  overflow: 'hidden',
+  boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+};
+
+const agentStyle: CSSProperties = {
+  position: 'absolute',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '28px',
+  transition: 'left 0.1s ease-out, top 0.1s ease-out',
+  userSelect: 'none',
+};
+
+// default export も用意（どちらのインポート方法でも動くように設定）
+export default Agent;

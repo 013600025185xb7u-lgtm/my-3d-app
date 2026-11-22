@@ -1,45 +1,51 @@
 import * as THREE from 'three'
 
-// シミュレーション全体の設定パラメータ
-export type SimParams = {
-  agentCount: number        // 人数 (1クラス40人×6=240人標準)
-  avgHeight: number         // 平均身長 (m)
-  avgShoulderWidth: number  // 平均肩幅 (m)
-  avgSpeed: number          // 平均歩行速度 (m/s)
-  speedRandomness: number   // 速度の個人差 (%)
-  minPersonalDist: number   // 最低対人距離 (m)
-  simSpeed: number          // 再生速度 (倍率)
-  reverseRate: number       // 無秩序・パニック逆走発生率 (%)
+export interface SimParams {
+  walkingSpeed: number
+  panicRate: number
+  speedVariance: number
+  minPersonalDist: number
+  simSpeed: number
+  isOrdered: boolean
+  laneCount: 1 | 2 | 3
+  startLocation: 'classroom' | 'corridor'
+  reverseRate: number
+  isSeedLocked: boolean
+  reverseSeed: number
+  zoomLevel: number
+  rotSensitivity: number
+  corridorWidth: number
+  forceBalance: number
+  orderedGap: number
+  cornerSpeedDiff?: number
+  opposingSlowdownRate: number // 🛑 対向接触時の減速率（0〜95%: 接触・至近距離すれ違い時の最大速度低下率）
+  resetKey: number
 }
 
-// 初期デフォルト値（建築・人間工学の一般的な数値）
-export const DEFAULT_PARAMS: SimParams = {
-  agentCount: 240,
-  avgHeight: 1.65,
-  avgShoulderWidth: 0.45,
-  avgSpeed: 1.3,
-  speedRandomness: 20,
-  minPersonalDist: 0.5,
-  simSpeed: 1.0,
-  reverseRate: 5,
-}
-
-// エージェント（避難者）個別データ
-export type AgentData = {
+export interface AgentData {
   id: number
-  height: number
-  shoulderWidth: number
-  baseSpeed: number
+  originClassroom: { id: number; x: number; y: number; z: number }
+  seatPos: THREE.Vector3
   currentPos: THREE.Vector3
   velocity: THREE.Vector3
   targetIndex: number
-  isReverse: boolean
-  originClassroom: THREE.Vector3
+  baseSpeed: number
+  shoulderWidth: number
+  height: number
   escaped: boolean
-  densityState: 'clear' | 'moderate' | 'dense'
+  isReversing: boolean
+  resetKeyRef?: number
+  assignedLane: number
+  queueOrder: number
 }
 
-// マップ位置情報 (2階廊下・階段・昇降口)
 export const MAP_CONFIG = {
-  exitPos: new THREE.Vector3(28, -3.5, 5), // 昇降口（5人分幅ゲート）
+  classrooms: [
+    { id: 0, x: -21.0, y: 0, z: 0 },
+    { id: 1, x: -12.6, y: 0, z: 0 },
+    { id: 2, x: -4.2, y: 0, z: 0 },
+    { id: 3, x: 4.2, y: 0, z: 0 },
+    { id: 4, x: 12.6, y: 0, z: 0 },
+    { id: 5, x: 21.0, y: 0, z: 0 }
+  ]
 }
